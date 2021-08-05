@@ -1,0 +1,56 @@
+<html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/danfojs@0.1.2/dist/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.4.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis"></script>
+</head>
+<body>
+<script>
+    dfd.read_csv('iris.csv').then(function(data){
+        console.log(data);
+        data.print();
+        iris = data.loc({columns:['Petel_L','Petal_W','Sepal_L','Sepal_W']});
+        iris.print();
+        var encoder = new dfd.OneHotEncoder();
+        category = encoder.fit(data['Class']);
+        data['Class'].print();
+        category.print();
+        
+        var X = tf.input({ shape: [4]});
+        var H = tf.layers.dense({ units: 4, activation:'relu'}).apply(X);
+        //var Y = tf.layers.dense({ units: 3}).apply(H);
+        var Y = tf.layers.dense({ units: 3, activation:'softmax'}).apply(H);   
+        model = tf.model({ inputs: X, outputs: Y });
+        
+        //var compileParam = { optimizer: tf.train.adam(), loss: tf.losses.meanSquaredError}
+        var compileParam = { optimizer: tf.train.adam(), loss: 'categoricalCrossentropy', metrics:['accuracy'] }
+    
+        model.compile(compileParam);
+        
+        tfvis.show.modelSummary({name:'Summary', tab:'Model'}, model);
+
+        // 3. Fit model
+        _history = [];
+        var fitParam = { 
+          epochs: 100, 
+          callbacks:{
+            onEpochEnd:
+              function(epoch, logs){
+                console.log('epoch', epoch, logs, 'RMSE=>', Math.sqrt(logs.loss));
+                _history.push(logs);
+                tfvis.show.history({name:'loss', tab:'History'}, _history, ['loss']);
+                tfvis.show.history({name:'accuracy', tab:'History'}, _history, ['acc']);
+              }
+          }
+        } 
+        
+        model.fit(iris.tensor, category.tensor, fitParam).then(function (result) {
+            // 4. Utilize the model 
+            predict = new dfd.DataFrame(model.predict(iris.tensor));
+            predict.print();
+            category.print();
+        });  
+    })
+</script>
+</body>
+</html>
